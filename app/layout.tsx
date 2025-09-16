@@ -9,8 +9,6 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: "EHR Dashboard - Healthcare Management System",
-  description: "Professional Electronic Health Records dashboard for healthcare providers",
-  generator: "v0.app",
 }
 
 export default function RootLayout({

@@ -1,5 +1,6 @@
 import { fhirClient } from "../fhir/client"
 import { transformFHIRDocumentReference, transformFHIRObservation, transformFHIRMedicationRequest } from "../fhir/transforms"
+import { mockCRUD, shouldUseMockCRUD, getCRUDErrorMessage } from "./mock-crud"
 import type { ClinicalNote, VitalSigns, LabResult, Medication } from "@/components/clinical/clinical-operations"
 
 export const clinicalApi = {
@@ -9,22 +10,24 @@ export const clinicalApi = {
       try {
         const docBundle = await fhirClient.search('DocumentReference', {
           patient: patientId,
-          status: 'current',
-          _include: 'DocumentReference:patient'
+          _format: 'json',
+          
         })
         
         if (!docBundle.entry || docBundle.entry.length === 0) {
           return []
         }
 
-        // Get patient name from included resources
-        const patientResource = docBundle.entry.find(
-          (entry: any) => entry.resource?.resourceType === 'Patient'
-        )?.resource as any
-        
-        const patientName = patientResource ? 
-          `${patientResource.name?.[0]?.given?.[0] || ''} ${patientResource.name?.[0]?.family || ''}`.trim() :
-          'Unknown Patient'
+        // Get patient info separately if needed
+        let patientName = 'Unknown Patient'
+        try {
+          const patient = await fhirClient.read('Patient', patientId)
+          patientName = patient.name?.[0] ? 
+            `${patient.name[0].given?.[0] || ''} ${patient.name[0].family || ''}`.trim() :
+            'Unknown Patient'
+        } catch (error) {
+          console.warn('Could not fetch patient details:', error)
+        }
 
         return docBundle.entry
           .filter((entry: any) => entry.resource?.resourceType === 'DocumentReference')
@@ -35,6 +38,14 @@ export const clinicalApi = {
       }
     },
     create: async (noteData: Omit<ClinicalNote, "id">): Promise<ClinicalNote> => {
+      if (shouldUseMockCRUD('create')) {
+        // Use mock CRUD for demonstration since HAPI test server is read-only
+        const result = mockCRUD.clinicalNotes.create(noteData)
+        console.log("✅ Mock CRUD: Clinical note created successfully")
+        return result.data
+      }
+      
+      // Fallback to FHIR (would work with a writable FHIR server)
       const fhirDoc = {
         resourceType: 'DocumentReference',
         status: 'current',
@@ -91,23 +102,24 @@ export const clinicalApi = {
       try {
         const obsBundle = await fhirClient.search('Observation', {
           patient: patientId,
-          category: 'vital-signs',
-          status: 'final',
-          _include: 'Observation:patient'
+          _format: 'json',
+          
         })
         
         if (!obsBundle.entry || obsBundle.entry.length === 0) {
           return []
         }
 
-        // Get patient name from included resources
-        const patientResource = obsBundle.entry.find(
-          (entry: any) => entry.resource?.resourceType === 'Patient'
-        )?.resource as any
-        
-        const patientName = patientResource ? 
-          `${patientResource.name?.[0]?.given?.[0] || ''} ${patientResource.name?.[0]?.family || ''}`.trim() :
-          'Unknown Patient'
+        // Get patient info separately if needed
+        let patientName = 'Unknown Patient'
+        try {
+          const patient = await fhirClient.read('Patient', patientId)
+          patientName = patient.name?.[0] ? 
+            `${patient.name[0].given?.[0] || ''} ${patient.name[0].family || ''}`.trim() :
+            'Unknown Patient'
+        } catch (error) {
+          console.warn('Could not fetch patient details:', error)
+        }
 
         return obsBundle.entry
           .filter((entry: any) => entry.resource?.resourceType === 'Observation')
@@ -176,9 +188,8 @@ export const clinicalApi = {
       try {
         const obsBundle = await fhirClient.search('Observation', {
           patient: patientId,
-          category: 'laboratory',
-          status: 'final',
-          _include: 'Observation:patient'
+          _format: 'json',
+          
         })
         
         if (!obsBundle.entry || obsBundle.entry.length === 0) {
@@ -241,22 +252,24 @@ export const clinicalApi = {
       try {
         const medBundle = await fhirClient.search('MedicationRequest', {
           patient: patientId,
-          status: 'active',
-          _include: 'MedicationRequest:patient'
+          _format: 'json',
+          
         })
         
         if (!medBundle.entry || medBundle.entry.length === 0) {
           return []
         }
 
-        // Get patient name from included resources
-        const patientResource = medBundle.entry.find(
-          (entry: any) => entry.resource?.resourceType === 'Patient'
-        )?.resource as any
-        
-        const patientName = patientResource ? 
-          `${patientResource.name?.[0]?.given?.[0] || ''} ${patientResource.name?.[0]?.family || ''}`.trim() :
-          'Unknown Patient'
+        // Get patient info separately if needed
+        let patientName = 'Unknown Patient'
+        try {
+          const patient = await fhirClient.read('Patient', patientId)
+          patientName = patient.name?.[0] ? 
+            `${patient.name[0].given?.[0] || ''} ${patient.name[0].family || ''}`.trim() :
+            'Unknown Patient'
+        } catch (error) {
+          console.warn('Could not fetch patient details:', error)
+        }
 
         return medBundle.entry
           .filter((entry: any) => entry.resource?.resourceType === 'MedicationRequest')

@@ -14,6 +14,7 @@ import { FileText, Activity, TestTube, Pill, Search, User } from "lucide-react"
 import { patientsApi } from "@/lib/api/patients"
 import { clinicalApi } from "@/lib/api/clinical"
 import { useApiQuery } from "@/lib/hooks/use-api"
+import { CRUDNotice } from "@/components/shared/crud-notice"
 
 export interface ClinicalNote {
   id: string
@@ -159,6 +160,8 @@ export function ClinicalOperations() {
 
   return (
     <div className="space-y-6">
+      <CRUDNotice />
+      
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Clinical Operations</h2>
         <p className="text-muted-foreground">Manage clinical notes, vital signs, lab results, and medications</p>

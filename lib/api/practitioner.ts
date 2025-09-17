@@ -18,8 +18,7 @@ export const practitionerApi = {
   getAll: async (): Promise<Provider[]> => {
     try {
       const practitionerBundle = await fhirClient.search('Practitioner', {
-        active: 'true',
-        _count: '100'
+        _format: 'json'
       })
 
       if (!practitionerBundle.entry || practitionerBundle.entry.length === 0) {

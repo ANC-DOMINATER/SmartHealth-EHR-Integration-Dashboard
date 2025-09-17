@@ -120,16 +120,6 @@ export function ReportsDashboard() {
     )
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner />
-      </div>
-    )
-  }
-
-  const COLORS = ["#8b5cf6", "#06b6d4", "#10b981", "#f59e0b"]
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -293,8 +283,8 @@ export function ReportsDashboard() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }: { name: string; percent: number }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
+                  label={(entry: any) =>
+                    `${entry.name} ${(entry.percent * 100).toFixed(0)}%`
                   }
                   outerRadius={80}
                   fill="#8884d8"

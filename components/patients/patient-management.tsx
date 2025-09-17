@@ -8,6 +8,7 @@ import { PatientEditForm } from "./patient-edit-form"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { ModalDialog } from "@/components/shared/modal-dialog"
+import { CRUDNotice } from "@/components/shared/crud-notice"
 import { patientsApi } from "@/lib/api/patients"
 import { useApiMutation } from "@/lib/hooks/use-api"
 
@@ -121,6 +122,8 @@ export function PatientManagement() {
 
   return (
     <div className="space-y-6">
+      <CRUDNotice />
+      
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Patient Management</h2>

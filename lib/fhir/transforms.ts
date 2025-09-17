@@ -106,8 +106,6 @@ export function buildFHIRSearchParams(searchTerm: string, searchType: "name" | "
   }
   
   // Add common search parameters according to FHIR spec
-  params._count = "20" // Reasonable limit for UI
-  params._sort = "family" // Sort by family name
   params._format = "json" // Explicit JSON format
   
   return params

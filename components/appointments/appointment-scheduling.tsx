@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { appointmentsApi } from "@/lib/api/appointments"
 import { AppointmentCalendar } from "./appointment-calendar"
 import { AppointmentList } from "./appointment-list"
 import { AppointmentForm } from "./appointment-form"
@@ -9,6 +11,8 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus } from "lucide-react"
 import { ModalDialog } from "@/components/shared/modal-dialog"
+import { CRUDNotice } from "@/components/shared/crud-notice"
+import { LoadingSpinner } from "@/components/shared/loading-spinner"
 
 export interface Appointment {
   id: string
@@ -39,88 +43,52 @@ export function AppointmentScheduling() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false)
-  const [appointments, setAppointments] = useState<Appointment[]>([
-    {
-      id: "A001",
-      patientId: "P001",
-      patientName: "John Doe",
-      providerId: "PR001",
-      providerName: "Dr. Smith",
-      date: "2024-02-15",
-      time: "09:00",
-      duration: 30,
-      type: "Consultation",
-      status: "scheduled",
-      reason: "Annual checkup",
-    },
-    {
-      id: "A002",
-      patientId: "P002",
-      patientName: "Sarah Johnson",
-      providerId: "PR002",
-      providerName: "Dr. Wilson",
-      date: "2024-02-15",
-      time: "10:30",
-      duration: 45,
-      type: "Follow-up",
-      status: "confirmed",
-      reason: "Asthma follow-up",
-    },
-    {
-      id: "A003",
-      patientId: "P003",
-      patientName: "Mike Brown",
-      providerId: "PR001",
-      providerName: "Dr. Smith",
-      date: "2024-02-16",
-      time: "14:00",
-      duration: 60,
-      type: "Physical Exam",
-      status: "scheduled",
-      reason: "Annual physical",
-    },
-  ])
+  const queryClient = useQueryClient()
 
-  const providers: Provider[] = [
-    {
-      id: "PR001",
-      name: "Dr. Smith",
-      specialty: "Family Medicine",
-      availability: {
-        monday: ["09:00", "09:30", "10:00", "10:30", "14:00", "14:30", "15:00"],
-        tuesday: ["09:00", "09:30", "10:00", "10:30", "11:00", "14:00", "14:30"],
-        wednesday: ["09:00", "09:30", "10:00", "14:00", "14:30", "15:00", "15:30"],
-        thursday: ["09:00", "09:30", "10:00", "10:30", "11:00", "14:00", "14:30"],
-        friday: ["09:00", "09:30", "10:00", "10:30", "11:00"],
-      },
-    },
-    {
-      id: "PR002",
-      name: "Dr. Wilson",
-      specialty: "Internal Medicine",
-      availability: {
-        monday: ["10:00", "10:30", "11:00", "14:00", "14:30", "15:00", "15:30"],
-        tuesday: ["09:00", "09:30", "10:00", "14:00", "14:30", "15:00"],
-        wednesday: ["10:00", "10:30", "11:00", "11:30", "14:00", "14:30"],
-        thursday: ["09:00", "09:30", "10:00", "10:30", "14:00", "14:30", "15:00"],
-        friday: ["10:00", "10:30", "11:00", "11:30", "14:00"],
-      },
-    },
-  ]
+  // Fetch appointments for the selected date
+  const selectedDateStr = selectedDate.toISOString().split('T')[0]
+  const { data: appointmentsData, isLoading: appointmentsLoading, error: appointmentsError } = useQuery({
+    queryKey: ['appointments', selectedDateStr],
+    queryFn: () => appointmentsApi.getByDateRange(selectedDateStr, selectedDateStr),
+  })
 
-  const handleAppointmentSave = (appointmentData: Partial<Appointment>) => {
+  // Fetch providers
+  const { data: providersData, isLoading: providersLoading } = useQuery({
+    queryKey: ['appointment-providers'],
+    queryFn: () => appointmentsApi.getProviders(),
+  })
+
+  const appointments = appointmentsData?.data || []
+  const providers = (providersData?.data || []).map((provider: any) => ({
+    id: provider.id,
+    name: provider.name,
+    specialty: provider.specialty,
+    availability: provider.schedule || {
+      monday: ["09:00", "09:30", "10:00", "10:30", "14:00", "14:30", "15:00"],
+      tuesday: ["09:00", "09:30", "10:00", "10:30", "11:00", "14:00", "14:30"],
+      wednesday: ["09:00", "09:30", "10:00", "14:00", "14:30", "15:00", "15:30"],
+      thursday: ["09:00", "09:30", "10:00", "10:30", "11:00", "14:00", "14:30"],
+      friday: ["09:00", "09:30", "10:00", "10:30", "11:00"],
+    }
+  }))
+
+  const handleAppointmentSave = async (appointmentData: Partial<Appointment>) => {
     if (selectedAppointment) {
       // Update existing appointment
-      setAppointments((prev) =>
-        prev.map((apt) => (apt.id === selectedAppointment.id ? { ...apt, ...appointmentData } : apt)),
-      )
+      try {
+        await appointmentsApi.update(selectedAppointment.id, appointmentData)
+        queryClient.invalidateQueries({ queryKey: ['appointments'] })
+      } catch (error) {
+        console.error('Failed to update appointment:', error)
+      }
     } else {
       // Create new appointment
-      const newAppointment: Appointment = {
-        id: `A${String(appointments.length + 1).padStart(3, "0")}`,
-        ...appointmentData,
-      } as Appointment
-      setAppointments((prev) => [...prev, newAppointment])
+      try {
+        await appointmentsApi.create(appointmentData as any)
+        queryClient.invalidateQueries({ queryKey: ['appointments'] })
+      } catch (error) {
+        console.error('Failed to create appointment:', error)
+      }
     }
     setIsFormModalOpen(false)
     setSelectedAppointment(null)
@@ -131,14 +99,27 @@ export function AppointmentScheduling() {
     setIsFormModalOpen(true)
   }
 
-  const handleAppointmentCancel = (appointmentId: string) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt.id === appointmentId ? { ...apt, status: "cancelled" as const } : apt)),
+  const handleAppointmentCancel = async (appointmentId: string) => {
+    try {
+      await appointmentsApi.cancel(appointmentId)
+      queryClient.invalidateQueries({ queryKey: ['appointments'] })
+    } catch (error) {
+      console.error('Failed to cancel appointment:', error)
+    }
+  }
+
+  if (appointmentsLoading || providersLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <LoadingSpinner />
+      </div>
     )
   }
 
   return (
     <div className="space-y-6">
+      <CRUDNotice />
+      
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Appointment Scheduling</h2>

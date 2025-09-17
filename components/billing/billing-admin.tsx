@@ -11,6 +11,7 @@ import { LoadingSpinner } from "@/components/shared/loading-spinner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { billingApi } from "@/lib/api/billing"
 import { CreditCard, Shield, FileText, BarChart3, AlertCircle } from "lucide-react"
+import { CRUDNotice } from "@/components/shared/crud-notice"
 
 export interface InsuranceEligibility {
   patientId: string
@@ -123,6 +124,8 @@ export function BillingAdmin() {
 
   return (
     <div className="space-y-6">
+      <CRUDNotice />
+      
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Billing & Administration</h2>
         <p className="text-muted-foreground">

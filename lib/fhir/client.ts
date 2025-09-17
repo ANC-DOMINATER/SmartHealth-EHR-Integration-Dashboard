@@ -1,8 +1,18 @@
 import axios from "axios"
 
+// Determine base URL based on environment
+const getBaseURL = () => {
+  // If we're on the server side (Node.js), use the HAPI FHIR URL directly
+  if (typeof window === 'undefined') {
+    return 'https://hapi.fhir.org/baseR4'
+  }
+  // If we're on the client side (browser), use the proxy
+  return '/fhir'
+}
+
 // FHIR API client configuration
 export const fhirApi = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_FHIR_API_URL,
+  baseURL: getBaseURL(),
   timeout: Number(process.env.FHIR_API_TIMEOUT) || 30000, // Increased timeout to 30 seconds
   headers: {
     "Content-Type": "application/fhir+json",
@@ -10,6 +20,53 @@ export const fhirApi = axios.create({
     "Cache-Control": "no-cache"
   },
 })
+
+// Request interceptor to filter out browser-specific parameters
+fhirApi.interceptors.request.use(
+  (config) => {
+    if (config.params) {
+      // Filter out browser-specific parameters
+      const filteredParams = Object.fromEntries(
+        Object.entries(config.params).filter(([key]) => 
+          !key.startsWith('vscodeBrowserReqId') && 
+          !key.startsWith('webview') && 
+          !key.includes('Browser') &&
+          !key.includes('chrome') &&
+          !key.includes('safari') &&
+          !key.includes('firefox')
+        )
+      )
+      config.params = filteredParams
+    }
+    
+    // Also filter URL parameters if they exist
+    if (config.url && config.url.includes('?')) {
+      const [baseUrl, queryString] = config.url.split('?')
+      const urlParams = new URLSearchParams(queryString)
+      
+      // Remove browser-specific parameters
+      const keysToRemove = []
+      for (const [key] of urlParams.entries()) {
+        if (key.startsWith('vscodeBrowserReqId') || 
+            key.startsWith('webview') || 
+            key.includes('Browser') ||
+            key.includes('chrome') ||
+            key.includes('safari') ||
+            key.includes('firefox')) {
+          keysToRemove.push(key)
+        }
+      }
+      
+      keysToRemove.forEach(key => urlParams.delete(key))
+      
+      const cleanQueryString = urlParams.toString()
+      config.url = cleanQueryString ? `${baseUrl}?${cleanQueryString}` : baseUrl
+    }
+    
+    return config
+  },
+  (error) => Promise.reject(error)
+)
 
 // Response interceptor for FHIR-specific error handling
 fhirApi.interceptors.response.use(
@@ -62,9 +119,21 @@ export const fhirClient = {
 
   // FHIR-specific methods
   search: (resourceType: string, params?: Record<string, string>): Promise<FHIRBundle> => {
-    const queryParams = new URLSearchParams(params).toString()
+    // Filter out browser-specific parameters that FHIR servers don't recognize
+    const filteredParams = params ? Object.fromEntries(
+      Object.entries(params).filter(([key]) => 
+        !key.startsWith('vscodeBrowserReqId') && 
+        !key.startsWith('webview') && 
+        !key.includes('Browser') &&
+        !key.includes('chrome') &&
+        !key.includes('safari') &&
+        !key.includes('firefox')
+      )
+    ) : {}
+    
+    const queryParams = new URLSearchParams(filteredParams).toString()
     const url = `/${resourceType}${queryParams ? `?${queryParams}` : ''}`
-    console.log(`🔍 FHIR SEARCH: ${resourceType}`, params)
+    console.log(`🔍 FHIR SEARCH: ${resourceType}`, filteredParams)
     return fhirApi.get(url).then((res) => {
       console.log(`✅ FHIR SEARCH Response:`, res.data)
       return res.data
